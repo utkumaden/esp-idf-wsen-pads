@@ -67,11 +67,11 @@
 #define WSEN_PADS_CTRL_1_SIM        (1 << 0) /**< SPI 3-wire mode. */
 
 /* CTRL_2 bits. */
-#define WSEN_PADS_CTRL_2_BOOT           (1 << 7)    /**< Reboot memory content. */
+#define WSEN_PADS_CTRL_2_BOOT           (1 << 7)    /**< Reload calibration content. */
 #define WSEN_PADS_CTRL_2_INT_H_L        (1 << 6)    /**< INT pin active high / active low */
 #define WSEN_PADS_CTRL_2_PP_OD          (1 << 5)    /**< INT pin push pull / open-drain */
 #define WSEN_PADS_CTRL_2_IF_ADD_INC     (1 << 4)    /**< Auto increment address pointer */
-#define WSEN_PADS_CTRL_2_SWRESET        (1 << 2)    /**< Software reset. */
+#define WSEN_PADS_CTRL_2_SWRESET        (1 << 2)    /**< Reset configuration registers. */
 #define WSEN_PADS_CTRL_2_LOW_NOISE_EN   (1 << 1)    /**< Enable low noise mode. */
 #define WSEN_PADS_CTRL_2_ONE_SHOT       (1 << 0)    /**< Make one pressure and tempreature measurement. */
 
