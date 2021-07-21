@@ -35,6 +35,12 @@ esp_err_t wsen_pads_getLastError(wsen_pads_t driver);
  */
 int wsen_pads_init(wsen_pads_t driver);
 
+/**
+ * Reset WSEN_PADS device.
+ * @param driver Driver instance.
+ * @param config Reset device configuration.
+ * @param calibration Reset device calibration parameters.
+ */
 int wsen_pads_reset(wsen_pads_t driver, int config, int calibration);
 
 /**
