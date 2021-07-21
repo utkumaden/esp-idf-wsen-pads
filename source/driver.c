@@ -186,6 +186,252 @@ int wsen_pads_configureInterface(
         )
     )
     {
+        errno = EIO;
+        return -1;
+    }
+
+    return 0;
+}
+
+int wsen_pads_setInterrupt(
+    wsen_pads_t driver,
+    wsen_pads_interrupt_mux_t mux,
+    int fifo_full,
+    int fifo_threshold,
+    int fifo_overflow,
+    int data_ready,
+    int latch
+)
+{
+    // Writes to two registers, INT_CFG and CTRL_3
+    ASSERT_DRV();
+
+    if (fifo_threshold > WSEN_PADS_FIFO_CAPACITY || mux > 3)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    // Cannot have differential mode without these flags.
+    if (mux && !GET(WSEN_PADS_INT_CFG, WSEN_PADS_INT_CFG_AUTOREFP | WSEN_PADS_INT_CFG_AUTOZERO))
+    {
+        errno = EFAULT;
+        return -1;
+    }
+
+    uint8_t int_cfg, ctrl_3;
+
+    int_cfg =
+        (mux) ? WSEN_PADS_INT_CFG_DIFF_EN : 0 |
+        (latch) ? WSEN_PADS_INT_CFG_LIR : 0 |
+        (mux & WSEN_PADS_INTERRUPT_MUX_PRESSURE_HIGH) ? WSEN_PADS_INT_CFG_PHE : 0 |
+        (mux & WSEN_PADS_INTERRUPT_MUX_PRESSURE_LOW) ? WSEN_PADS_INT_CFG_PLE : 0;
+
+    ctrl_3 =
+        (fifo_full) ? WSEN_PADS_CTRL_3_INT_F_FULL : 0 |
+        (fifo_threshold) ? WSEN_PADS_CTRL_3_INT_F_WTM : 0 |
+        (fifo_overflow) ? WSEN_PADS_CTRL_3_INT_F_OVR : 0 |
+        (data_ready) ? WSEN_PADS_CTRL_3_DRDY : 0 |
+        (uint8_t) mux;
+
+    if (
+        SET(
+            WSEN_PADS_INT_CFG,
+            int_cfg,
+            WSEN_PADS_INT_CFG_DIFF_EN |
+            WSEN_PADS_INT_CFG_LIR |
+            WSEN_PADS_INT_CFG_PLE |
+            WSEN_PADS_INT_CFG_PHE
+        )
+
+        ||
+
+        SET(
+            WSEN_PADS_CTRL_3,
+            ctrl_3,
+            WSEN_PADS_CTRL_3_INT_F_FULL |
+            WSEN_PADS_CTRL_3_INT_F_WTM |
+            WSEN_PADS_CTRL_3_INT_F_OVR |
+            WSEN_PADS_CTRL_3_DRDY |
+            WSEN_PADS_CTRL_3_INT_S_MASK
+        )
+    )
+    {
+        errno = EIO;
+        return -1;
+    }
+
+    return 0;
+}
+
+int wsen_pads_getStatus(wsen_pads_t driver, wsen_pads_status_t *out_status, uint8_t *opt_out_fifo_level)
+{
+    // Read 4 registers, INT_SRC, FIFO_STATUS_1, FIFO_STATUS_2, STATUS
+    ASSERT_DRV();
+
+    if (out_status == NULL)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    // It is more efficient time wise to read the FIFO_STATUS_1 as well as the others.
+    uint8_t status[4];  // 0 INT_SRC
+                        // 1 FIFO_STATUS_1
+                        // 2 FIFO_STATUS_2
+                        // 3 STATUS
+
+    if ((driver->error = wsen_pads_read(driver->port, driver->dev, WSEN_PADS_INT_SRC, status, sizeof status)))
+    {
+        errno = EIO;
+        return -1;
+    }
+
+    *out_status =
+        (status[0] & WSEN_PADS_INT_SRC_IA) ? WSEN_PADS_STATUS_INT_ACTIVE : 0 |
+        (status[0] & WSEN_PADS_INT_SRC_PH) ? WSEN_PADS_STATUS_INT_PRESSURE_HIGH : 0 |
+        (status[0] & WSEN_PADS_INT_SRC_PL) ? WSEN_PADS_STATUS_INT_PRESSURE_LOW : 0 |
+        (status[2] & WSEN_PADS_FIFO_STATUS_2_FIFO_FULL_IA) ? WSEN_PADS_STATUS_FIFO_FULL : 0 |
+        (status[2] & WSEN_PADS_FIFO_STATUS_2_FIFO_OVER_IA) ? WSEN_PADS_STATUS_FIFO_OVERRUN : 0 |
+        (status[2] & WSEN_PADS_FIFO_STATUS_2_FIFO_WTM_IA) ? WSEN_PADS_STATUS_FIFO_THRESHOLD : 0 |
+        (status[3] & WSEN_PADS_STATUS_P_DA) ? WSEN_PADS_STATUS_PRESSURE_READY : 0 |
+        (status[3] & WSEN_PADS_STATUS_P_OR) ? WSEN_PADS_STATUS_PRESSURE_OVERRUN : 0 |
+        (status[3] & WSEN_PADS_STATUS_T_DA) ? WSEN_PADS_STATUS_TEMPERATURE_READY : 0 |
+        (status[3] & WSEN_PADS_STATUS_T_OR) ? WSEN_PADS_STATUS_TEMPERATURE_OVERRUN : 0;
+
+    if (opt_out_fifo_level)
+    {
+        *opt_out_fifo_level = status[1];
+    }
+
+    return 0;
+}
+
+int wsen_pads_configureData(
+    wsen_pads_t driver,
+    wsen_pads_odr_t dataRate,
+    wsen_pads_lowpass_t lowpass,
+    int low_noise,
+    int blockDataUpdate
+)
+{
+    // Writes to CTRL_1, CTRL_2
+    ASSERT_DRV();
+
+    if (
+        dataRate > WSEN_PADS_DATARATE_MAX ||
+        lowpass > WSEN_PADS_LOWPASS_DUAL ||
+        (
+            // Low noise does not offer these modes.
+            low_noise &&
+            (
+                dataRate == WSEN_PADS_CTRL_1_ODR_100HZ ||
+                dataRate == WSEN_PADS_DATARATE_200HZ
+            )
+        )
+    )
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    // First, read control bits.
+    uint8_t bits[2];
+    if (driver->error = wsen_pads_read(driver->port, driver->dev, WSEN_PADS_CTRL_1, bits, sizeof(bits)))
+    {
+        errno = EIO;
+        return -1;
+    }
+
+    bits[0] &= ~WSEN_PADS_CTRL_1_ODR_MASK;
+
+    // If low noise state changes, first enter power down mode.
+    // Conversion to 0,1 bools, don't remove bangs.
+    if (!(bits[2] & WSEN_PADS_CTRL_2_LOW_NOISE_EN) != !low_noise)
+    {
+        if (WRITE(WSEN_PADS_CTRL_1, bits, 1))
+        {
+            errno = EIO;
+            return -1;
+        }
+    }
+
+    // Reset bits.
+    // ODR masking alraedy achieved.
+    bits[0] &= ~(WSEN_PADS_CTRL_1_EN_LPFP | WSEN_PADS_CTRL_1_LPFP_CFG | WSEN_PADS_CTRL_1_BDU);
+    bits[1] &= ~WSEN_PADS_CTRL_2_LOW_NOISE_EN;
+
+    // Set bits.
+    bits[0] |=
+        (dataRate << WSEN_PADS_CTRL_1_ODR_POS) |
+        (blockDataUpdate ? WSEN_PADS_CTRL_1_BDU : 0);
+    switch (lowpass)
+    {
+    // Yes the missing breaks are intentional.
+    case WSEN_PADS_LOWPASS_DUAL:
+        bits[0] |= WSEN_PADS_CTRL_1_LPFP_CFG;
+    case WSEN_PADS_LOWPASS_SINGLE:
+        bits[0] |= WSEN_PADS_CTRL_1_EN_LPFP;
+    default:
+    case WSEN_PADS_LOWPASS_OFF:
+        break;
+    }
+    bits[1] = (low_noise) ? WSEN_PADS_CTRL_2_LOW_NOISE_EN : 0;
+
+    // Write bits, in reverse order (LOW_NOISE must be set or reset first.)
+    if (
+        WRITE(WSEN_PADS_CTRL_2, &bits[1], 1)
+        ||
+        WRITE(WSEN_PADS_CTRL_1, &bits[0], 1)
+    )
+    {
+        errno = EIO;
+        return -1;
+    }
+
+    return 0;
+}
+
+int wsen_pads_autofeature(wsen_pads_t driver, int autozero, int autorefp)
+{
+    // Writes to INT_CFG
+    ASSERT_DRV();
+
+    if (autozero && autorefp)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (
+        SET(
+            WSEN_PADS_INT_CFG,
+            (autozero) ? WSEN_PADS_INT_CFG_AUTOZERO : WSEN_PADS_INT_CFG_RESET_AZ |
+            (autorefp) ? WSEN_PADS_INT_CFG_AUTOREFP : WSEN_PADS_INT_CFG_RESET_ARP,
+            WSEN_PADS_INT_CFG_AUTOZERO | WSEN_PADS_INT_CFG_AUTOREFP |
+            WSEN_PADS_INT_CFG_RESET_AZ | WSEN_PADS_INT_CFG_RESET_ARP
+        )
+    )
+    {
+        errno = EIO;
+        return -1;
+    }
+
+    return 0;
+}
+
+int wsen_pads_setPressureThresholdR(wsen_pads_t driver, uint16_t pressure)
+{
+    // Write to threshold pressure register.
+    ASSERT_DRV();
+
+    uint8_t val[2];
+    val[0] = pressure & 0xFF;
+    val[1] = pressure >> 8;
+
+    if (WRITE(WSEN_PADS_THR_P_L, val, 2))
+    {
+        errno = EIO;
         return -1;
     }
 
