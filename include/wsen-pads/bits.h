@@ -7,9 +7,11 @@ typedef struct wsen_pads_t *wsen_pads_t;
 
 typedef enum wsen_pads_device_addr_t
 {
-    WSEN_PADS_I2C_ADDR_DETECT = 0,
-    WSEN_PADS_I2C_ADDR_LO = 0xB8,
-    WSEN_PADS_I2C_ADDR_HI = 0xBA
+    WSEN_PADS_I2C_ADDR_DETECT   = 0,
+    WSEN_PADS_I2C_ADDR_LO       = 0xB8,
+    WSEN_PADS_I2C_ADDR_HI       = 0xBA
 } wsen_pads_device_addr_t;
+
+#define WSEN_PADS_FIFO_CAPACITY 128 /**< Maximum number of samples the FIFO can hold. */
 
 #endif

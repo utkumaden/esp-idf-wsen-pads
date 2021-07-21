@@ -78,7 +78,7 @@
 /* CTRL_3 bits. */
 #define WSEN_PADS_CTRL_3_INT_F_FULL         (1 << 5)    /**< Enable FIFO full interrupt. */
 #define WSEN_PADS_CTRL_3_INT_F_WTM          (1 << 4)    /**< Enable FIFO threshold interrupt. */
-#define WSEN_PASD_CTRL_3_INT_F_OVR          (1 << 3)    /**< Enable FIFO overwrite interrupt. */
+#define WSEN_PADS_CTRL_3_INT_F_OVR          (1 << 3)    /**< Enable FIFO overwrite interrupt. */
 #define WSEN_PADS_CTRL_3_DRDY               (1 << 2)    /**< Enable data ready interrupt. */
 #define WSEN_PADS_CTRL_S_POS                0           /**< Position of interrupt mux select bits. */
 #define WSEN_PADS_CTRL_3_INT_S_MASK         (3 << 0)    /**< Mask for interrupt mux select bits. */
@@ -91,15 +91,13 @@
 #define WSEN_PADS_FIFO_CTRL_STOP_ON_WTM (1 << 3)    /**< Consider FIFO full when threshold reached. */
 #define WSEN_PADS_FIFO_CTRL_TRIG_MODES  (1 << 2)    /**< Enabled triggered FIFO. */
 #define WSEN_PADS_F_MODE_POS            0           /**< Position of FIFO mode select bits. */
-#define WSEN_PASS_F_MODE_MASK           (3 << 0)    /**< Mask for FIFO mode select bits. */
+#define WSEN_PADS_F_MODE_MASK           (3 << 0)    /**< Mask for FIFO mode select bits. */
 
 /* INT_SOURCE bits. */
 #define WSEN_PADS_INT_SRC_BOOT_ON   (1 << 7)    /**< Indicates the boot process is incomplete. */
 #define WSEN_PADS_INT_SRC_IA        (1 << 2)    /**< Indicates an interrupt is active. */
 #define WSEN_PADS_INT_SRC_PL        (1 << 1)    /**< Indicates a pressure low interrupt. */
 #define WSEN_PADS_INT_SRC_PH        (1 << 0)    /**< Indicates a pressure high interrupt. */
-
-#define WSEN_PADS_FIFO_STATUS_1_MAX_VALUE 128   /**< Maximum number of samples the FIFO can hold. */
 
 /* FIFO_STAUS_2 bits.*/
 #define WSEN_PADS_FIFO_STATUS_2_FIFO_WTM_IA     (1 << 7)    /**< Indicates a FIFO threshold interrupt. */
