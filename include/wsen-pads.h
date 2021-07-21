@@ -6,6 +6,7 @@
 
 #include "wsen-pads/bits.h"
 #include <driver/i2c.h>
+#include <stdint.h>
 
 /**
  * Create driver instance.
