@@ -43,10 +43,13 @@ esp_err_t wsen_pads_write(i2c_port_t port, uint8_t dev, uint8_t addr, const void
     cmd = i2c_cmd_link_create();
     if (cmd)
     {
-        i2c_master_start(cmd);
-        i2c_master_write_byte(cmd, dev | I2C_MASTER_WRITE, true);
-        i2c_master_write_byte(cmd, addr, true);
-        i2c_master_write(cmd, (uint8_t*)buffer, size, true);
+        for (int i = 0; i < size; ++i)
+        {
+            i2c_master_start(cmd);
+            i2c_master_write_byte(cmd, dev | I2C_MASTER_WRITE, true);
+            i2c_master_write_byte(cmd, addr, true);
+            i2c_master_write_byte(cmd, ((uint8_t*)buffer)[i], true);
+        }
         i2c_master_stop(cmd);
 
         err = i2c_master_cmd_begin(port, cmd, 20);
