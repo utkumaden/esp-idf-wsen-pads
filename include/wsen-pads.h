@@ -147,7 +147,7 @@ int wsen_pads_setPressureThreshold(wsen_pads_t driver, uint16_t pressure);
  */
 inline static int wsen_pads_setPressureThresholdF(wsen_pads_t driver, float pressure)
 {
-    return wsen_pads_setPressureThresholdR(driver, (uint16_t)(pressure / 0.0625f));
+    return wsen_pads_setPressureThreshold(driver, (uint16_t)(pressure / 0.0625f));
 }
 
 /**

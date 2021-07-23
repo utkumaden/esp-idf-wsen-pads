@@ -337,7 +337,7 @@ int wsen_pads_configureData(
 
     // First, read control bits.
     uint8_t bits[2];
-    if (driver->error = wsen_pads_read(driver->port, driver->dev, WSEN_PADS_CTRL_1, bits, sizeof(bits)))
+    if (READ(WSEN_PADS_CTRL_1, bits, sizeof bits))
     {
         errno = EIO;
         return -1;
