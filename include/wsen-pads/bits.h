@@ -40,6 +40,13 @@ typedef enum wsen_pdas_interrupt_mux_t
     WSEN_PADS_INTERRUPT_MUX_PRESSURE_HIGH_OR_LOW    = 3
 } wsen_pads_interrupt_mux_t;
 
+typedef enum wsen_pdas_fifo_mode_t
+{
+    WSEN_PADS_FIFO_MODE_BYPASS      = 0,
+    WSEN_PADS_FIFO_MODE_FIFO        = 1,
+    WSEN_PADS_FIFO_MODE_CONTINUOUS  = 3
+} wsen_pads_fifo_mode_t;
+
 #define WSEN_PADS_FIFO_CAPACITY 128 /**< Maximum number of samples the FIFO can hold. */
 
 typedef enum wsen_pads_status_t

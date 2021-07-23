@@ -420,7 +420,7 @@ int wsen_pads_autofeature(wsen_pads_t driver, int autozero, int autorefp)
     return 0;
 }
 
-int wsen_pads_setPressureThresholdR(wsen_pads_t driver, uint16_t pressure)
+int wsen_pads_setPressureThreshold(wsen_pads_t driver, uint16_t pressure)
 {
     // Write to threshold pressure register.
     ASSERT_DRV();
@@ -434,6 +434,137 @@ int wsen_pads_setPressureThresholdR(wsen_pads_t driver, uint16_t pressure)
         errno = EIO;
         return -1;
     }
+
+    return 0;
+}
+
+int wsen_pads_setPressureOffset(wsen_pads_t driver, uint16_t pressure)
+{
+    ASSERT_DRV();
+
+    uint8_t val[2];
+    val[0] = pressure & 0x0F;
+    val[1] = pressure >> 8;
+
+    if (WRITE(WSEN_PADS_OPC_P_L, val, 2))
+    {
+        errno = EIO;
+        return -1;
+    }
+
+    return 1;
+}
+
+int wsen_pads_getData(wsen_pads_t driver, int32_t *out_pressure, int16_t *out_temperature)
+{
+    ASSERT_DRV();
+
+    if (out_pressure == NULL || out_temperature == NULL)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    uint8_t data[5];
+    if (READ(WSEN_PADS_DATA_P_XL, data, sizeof data))
+    {
+        errno = EIO;
+        return -1;
+    }
+
+    *out_pressure = (int32_t)(data[0] | (data[1] << 8) | (data[2] << 16));
+    *out_temperature = (int16_t)(data[3] | (data[4] << 8));
+
+    return 0;
+}
+
+int wsen_pads_configureFifo(
+    wsen_pads_t driver,
+    int stop_on_threshold,
+    int trigger_mode,
+    wsen_pads_fifo_mode_t fifoMode
+)
+{
+    ASSERT_DRV();
+
+    if (fifoMode > WSEN_PADS_FIFO_MODE_CONTINUOUS)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    uint8_t value = 
+        (stop_on_threshold) ? WSEN_PADS_FIFO_CTRL_STOP_ON_WTM : 0 |
+        (trigger_mode) ? WSEN_PADS_FIFO_CTRL_TRIG_MODES : 0 |
+        (fifoMode << WSEN_PADS_F_MODE_MASK);
+
+    if (WRITE(WSEN_PADS_FIFO_CTRL, &value, 1))
+    {
+        errno = EIO;
+        return -1;
+    }
+
+    return 0;
+}
+
+int wsen_pads_setFifoThreshold(wsen_pads_t driver, uint8_t threshold)
+{
+    ASSERT_DRV();
+
+    if (threshold > WSEN_PADS_FIFO_CAPACITY)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (WRITE(WSEN_PADS_FIFO_WTM, &threshold, sizeof threshold))
+    {
+        errno = EIO;
+        return -1;
+    }
+
+    return 0;
+}
+
+int wsen_pads_getFifoLevel(wsen_pads_t driver, uint8_t *out_level)
+{
+    ASSERT_DRV();
+
+    if (out_level == NULL)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (READ(WSEN_PADS_FIFO_STATUS_1, out_level, 1))
+    {
+        errno = EIO;
+        return -1;
+    }
+
+    return 0;
+}
+
+int wsen_pads_getFifo(wsen_pads_t driver, int32_t *out_pressure, int16_t *out_temperature)
+{
+    ASSERT_DRV();
+
+    if (out_pressure == NULL || out_temperature == NULL)
+    {
+        errno = EIO;
+        return -1;
+    }
+
+    uint8_t values[5];
+
+    if (READ(WSEN_PADS_FIFO_DATA_P_XL, values, sizeof values))
+    {
+        errno = EIO;
+        return -1;
+    }
+
+    *out_pressure = (int32_t)(values[0] | (values[1] << 8) | (values[2] << 16));
+    *out_temperature = (int16_t)(values[3] | (values[4] << 8));
 
     return 0;
 }

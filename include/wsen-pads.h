@@ -128,46 +128,175 @@ int wsen_pads_configureData(
 int wsen_pads_autofeature(wsen_pads_t driver, int autozero, int autorefp);
 
 /**
- * Convert numeric to reference pressure value.
- * @param value Value to convert.
- * @return Converted value.
- */
-#define WSEN_PADS_TO_REFERENCE_PRESSURE(value) ((uint16_t)((value) / 16))
-
-/**
  * Set pressure threshold used with differential pressure interrupts.
  * @param driver Driver instance.
- * @param pressure Pressure threshold value in kPa / 16.
+ * @param pressure Pressure threshold value in 1/256 kPa fixed point.
  * @return -1 on error.
  * @remarks Pressure threshold value is written to sensor as fixed point value.
  * The value is in 62.5 Pa increments.
  */
-int wsen_pads_setPressureThresholdR(wsen_pads_t driver, uint16_t pressure);
+int wsen_pads_setPressureThreshold(wsen_pads_t driver, uint16_t pressure);
 
 /**
  * Set pressure threshold used with differential pressure interrupts.
  * @param driver Driver instance.
- * @param pressure Pressure threshold value in Pa.
- * @return -1 on error.
- * @remarks Pressure threshold value is written to sensor as fixed point value.
- * The value is in 62.5 Pa increments.
- */
-inline static int wsen_pads_setPressureThresholdI(wsen_pads_t driver, uint32_t pressure)
-{
-    return wsen_pads_setPressureThresholdR(driver, WSEN_PADS_TO_REFERENCE_PRESSURE(pressure / 1000));
-}
-
-/**
- * Set pressure threshold used with differential pressure interrupts.
- * @param driver Driver instance.
- * @param pressure Pressure threshold value in Pa.
+ * @param pressure Pressure threshold value in kPa.
  * @return -1 on error.
  * @remarks Pressure threshold value is written to sensor as fixed point value.
  * The value is in 62.5 Pa increments.
  */
 inline static int wsen_pads_setPressureThresholdF(wsen_pads_t driver, float pressure)
 {
-    return wsen_pads_setPressureThresholdR(driver, WSEN_PADS_TO_REFERENCE_PRESSURE(pressure / 1000));
+    return wsen_pads_setPressureThresholdR(driver, (uint16_t)(pressure / 0.0625f));
+}
+
+/**
+ * Get the reference pressure take when AUTOREFP activated.
+ * @param driver Driver instance.
+ * @param pressure Pointer to reference pressure in 1/160 kPa fixed point.
+ * @return -1 on error.
+ * @remarks This is the pressure base used in diffirential mode.
+ */
+int wsen_pads_getReferencePressure(wsen_pads_t driver, uint16_t *out_pressure);
+
+/**
+ * Get the reference pressure take when AUTOREFP activated.
+ * @param driver Driver instance.
+ * @param pressure Pointer to reference pressure in kPa.
+ * @return -1 on error.
+ * @remarks This is the pressure base used in diffirential mode.
+ */
+inline static int wsen_pads_getReferencePressureF(wsen_pads_t driver, float *out_pressure)
+{
+    uint16_t pressure;
+    if (out_pressure == NULL)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (!wsen_pads_getReferencePressure(driver, &pressure))
+    {
+        return -1;
+    }
+
+    *out_pressure = ((float)(((uint32_t)pressure) << 8)) / 40960.0f;
+    return 0;
+}
+
+/**
+ * Set the pressure offset to be subtracted from measurement before loading into
+ * registers.
+ * @param driver Driver instance.
+ * @param pressure Pressure value in 1/160 kPa fixed point.
+ * @return -1 on error.
+ */
+int wsen_pads_setPressureOffset(wsen_pads_t driver, uint16_t pressure);
+
+inline static int wsen_pads_setPressureOffsetF(wsen_pads_t driver, float pressure)
+{
+    return wsen_pads_setPressureOffset(driver, (uint16_t)((uint32_t)(pressure / 40960.0f) >> 8));
+}
+
+/**
+ * Read data register values.
+ * @param driver Driver instance.
+ * @param out_pressure Pointer to write pressure data to. (in 1/40960 kPa)
+ * @param out_temperature Pointer to write temperature data to (in 1/100 degrees C)
+ * @return -1 on error.
+ */
+int wsen_pads_getData(wsen_pads_t driver, int32_t *out_pressure, int16_t *out_temperature);
+
+/**
+ * Read data register values.
+ * @param driver Driver instance.
+ * @param out_pressure Pointer to write pressure data to. (in kPa)
+ * @param out_temperature Pointer to write temperature data to (in C)
+ * @return -1 on error.
+ */
+inline static int wsen_pads_getDataF(wsen_pads_t driver, float *out_pressure, float *out_temperature)
+{
+    int32_t iPres;
+    int16_t iTemp;
+
+    if (out_pressure == NULL || out_temperature == NULL)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (wsen_pads_getData(driver, &iPres, &iTemp))
+    {
+        return -1;
+    }
+
+    *out_pressure = (float)iPres / 40960.0f;
+    *out_temperature = (float)iTemp / 0.01f;
+
+    return 0;
+}
+
+/**
+ * Edit FIFO configuration
+ * @param driver Driver instance.
+ * @param stop_on_threshold Consider FIFO full when threshold reached.
+ * @param trigger_mode Enabled triggered FIFO
+ * @param fifoMode FIFO modus operandi.
+ * @return -1 on error.
+ * @remarks See documentation for more information.
+ */
+int wsen_pads_configureFifo(
+    wsen_pads_t driver,
+    int stop_on_threshold,
+    int trigger_mode,
+    wsen_pads_fifo_mode_t fifoMode
+);
+
+/**
+ * Set FIFO threshold value.
+ * @param driver Driver instance.
+ * @param threshold Threshold value to write.
+ * @return -1 on error.
+ */
+int wsen_pads_setFifoThreshold(wsen_pads_t driver, uint8_t threshold);
+
+/**
+ * Get FIFO fill level.
+ * @param driver Driver instance.
+ * @param out_level Pointer to write fill level to.
+ * @return -1 on error.
+ */
+int wsen_pads_getFifoLevel(wsen_pads_t driver, uint8_t *out_level);
+
+/**
+ * Pop data from FIFO.
+ * @param driver Driver instance,
+ * @param out_pressure Pointer to write pressure data to. (in 1/40960 kPa)
+ * @param out_temperature Pointer to write temperature data to. (in 1/100 degrees C)
+ * @param -1 on error.
+ */
+int wsen_pads_getFifo(wsen_pads_t driver, int32_t *out_pressure, int16_t *out_temperature);
+
+inline static int wsen_pads_getFifoF(wsen_pads_t driver, float *out_pressure, float *out_temperature)
+{
+    int32_t iPres;
+    int16_t iTemp;
+
+    if (out_pressure == NULL || out_temperature == NULL)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (wsen_pads_getFifo(driver, &iPres, &iTemp))
+    {
+        return -1;
+    }
+
+    *out_pressure = (float)iPres / 40960.0f;
+    *out_temperature = (float)iTemp / 0.01f;
+
+    return 0;
 }
 
 #endif
